@@ -1,6 +1,73 @@
 apiVersion: tekton.dev/v1beta1
 kind: Pipeline
 metadata:  
-  name: <place-name-here>
+  name: hello-pipeline
 spec:
+  params:
+    - name: message
+      type: string
   tasks:
+    - name: hello
+      taskRef:
+        name: echo
+      params:
+        - name: message
+          value: "$(params.message)"
+
+---
+
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:  
+  name: cd-pipeline
+spec:
+  params:
+    - name: repo-url
+    - name: branch
+      default: "master"
+
+  tasks:
+    - name: clone
+      taskRef:
+        name: checkout
+      params:
+        - name: repo-url
+          value: "$(params.repo-url)"
+        - name: branch
+          value: "$(params.branch)"
+
+    - name: linting
+      taskRef:
+        name: lint
+      params:
+        - name: message
+          value: "Calling Flake8 linter..."
+      runAfter:
+        - clone
+    
+    - name: testing
+      taskRef:
+        name: tests
+      params:
+        - name: message
+          value: "Running unit tests with PyUnit..."
+      runAfter:
+        - linting
+    
+    - name: building
+      taskRef:
+        name: build
+      params:
+        - name: message
+          value: "Building image for $(params.repo-url)"
+      runAfter:
+        - testing
+
+    - name: deploying
+      taskRef:
+        name: deploy
+      params:
+        - name: message
+          value: "Deploing $(params.branch) branch of $(params.repo-url)..."
+      runAfter:
+        - building
